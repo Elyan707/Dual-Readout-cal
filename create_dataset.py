@@ -3,7 +3,7 @@ import re
 import uproot
 import numpy as np
 import pandas as pd
-import energy1
+import energy
 
 
 #This script builds a database from the .root files and place it in a parquet file for later analysis
@@ -30,7 +30,7 @@ all_cols = sipm_s_cols + sipm_c_cols + selection_branches
 
 #html file containing the nominal energy values
 html_path = 'twiki.html'
-energy_map = energy1.get_energy(html_path)
+energy_map = energy.get_energy(html_path)
 
 
 #defines the conditions to have positrons
@@ -81,6 +81,7 @@ files = sorted(
 )
 
 all_runs_df = []
+run_index=0
 
 for entry in files :
     filepath = entry.path if hasattr(entry, 'path') else entry
@@ -98,10 +99,17 @@ for entry in files :
     df['particle_id'] = np.select([positron_cond, muon_cond], [1,2], default=0) #positron=1, muons=2, other particles=0
 
     run = get_run(filepath)
+    run_index += 1
     energy = energy_map.get(run)
 
-    df.insert(0, "run", run) # first column is run number
-    df.insert(1, "energy", energy) # second column is beam energy
+    # Skip the run if energy is missing, NaN, or not numeric
+    if not isinstance(energy, (int, float, np.number)) or not np.isfinite(energy):
+        print(f"Skipping run {run}: invalid energy = {energy}")
+        continue
+
+    df.insert(0, "run_index", run_index) # first column is run_index
+    df.insert(1, "run", run) # second column is run number
+    df.insert(2, "energy", energy) # third column is beam energy
 
     all_runs_df.append(df)
 
